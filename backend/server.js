@@ -243,18 +243,31 @@ async function processMessages(messages) {
 
 // WEBHOOK - Verificação (Meta chama uma vez para validar)
 app.get('/api/webhook', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
-  
-  const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'token';
-  
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('Webhook verificado com sucesso!');
-    res.status(200).send(challenge);
-  } else {
-    console.log('Falha na verificação do webhook');
-    res.sendStatus(403);
+  try {
+    console.log('=== WEBHOOK GET RECEBIDO ===');
+    console.log('Query params:', req.query);
+    
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+    
+    const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'token';
+    
+    console.log('Mode:', mode);
+    console.log('Token recebido:', token);
+    console.log('Token esperado:', VERIFY_TOKEN);
+    console.log('Challenge:', challenge);
+    
+    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+      console.log('✅ Webhook verificado com sucesso!');
+      return res.status(200).send(challenge);
+    } else {
+      console.log('❌ Falha na verificação do webhook');
+      return res.sendStatus(403);
+    }
+  } catch (error) {
+    console.error('❌ ERRO NO WEBHOOK GET:', error);
+    return res.status(500).json({ error: error.message });
   }
 });
 
