@@ -10,6 +10,8 @@ COPY . .
 
 RUN npm run build
 
+# Force rebuild timestamp: 1728065892
+
 FROM nginx:alpine
 
 COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
