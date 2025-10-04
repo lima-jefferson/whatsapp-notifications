@@ -26,7 +26,16 @@ const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 app.use(cors());
 app.use(express.json());
 
-// Tratamento de erros globais
+// Adicione estas linhas aqui:
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'online',
+    timestamp: new Date().toISOString(),
+    endpoints: ['/webhook', '/upload', '/batches']
+  });
+});
+
+// Tratamento de erros globais (já existe)
 process.on('uncaughtException', (error) => {
   console.error('Erro não capturado:', error);
 });
