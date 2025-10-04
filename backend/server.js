@@ -247,7 +247,7 @@ app.get('/api/webhook', (req, res) => {
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
   
-  const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'meu_token_secreto_123';
+  const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'token';
   
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
     console.log('Webhook verificado com sucesso!');
