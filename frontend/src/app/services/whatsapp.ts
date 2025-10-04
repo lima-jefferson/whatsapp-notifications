@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
 
 export interface Batch {
   id: number;
@@ -11,6 +10,8 @@ export interface Batch {
   sent: number;
   failed: number;
   pending: number;
+  respostas_recebidas?: number;
+  respostas_pendentes?: number;
   created_at: string;
 }
 
@@ -29,6 +30,8 @@ export interface Message {
   message_id?: string;
   error_message?: string;
   sent_at?: string;
+  status_confirmacao?: string;
+  data_confirmacao?: string;
   created_at: string;
 }
 
@@ -52,7 +55,9 @@ export interface SendResponse {
   providedIn: 'root'
 })
 export class WhatsappService {
-  private apiUrl = environment.apiUrl || 'http://localhost:3000/api';
+  private apiUrl = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3000'
+    : 'https://notifica-backend.negocios-digitais-br.online';
 
   constructor(private http: HttpClient) {}
 
