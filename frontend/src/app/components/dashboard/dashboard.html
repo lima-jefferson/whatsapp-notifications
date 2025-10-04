@@ -1,0 +1,276 @@
+<div class="container">
+  <h1>📱 Sistema de Notificações WhatsApp</h1>
+
+  <!-- Card de Upload -->
+  <div class="card">
+    <h2>Importar Lote</h2>
+    
+    <div class="upload-section">
+      <div class="upload-wrapper">
+        <div class="upload-icon">📤</div>
+        <div class="upload-text">
+          <strong>Clique para selecionar ou arraste o arquivo aqui</strong>
+          <small>Arquivo TXT com dados dos pacientes</small>
+        </div>
+        <input 
+          type="file" 
+          accept=".txt"
+          (change)="onFileSelected($event)"
+          [disabled]="isUploading"
+        />
+      </div>
+      
+      <div *ngIf="isUploading" class="uploading-state">
+        <span class="loading"></span>
+        <span>Processando arquivo...</span>
+      </div>
+    </div>
+    
+    <div class="format-info">
+      <strong>Formato esperado:</strong> NOME|TELEFONE|TIPO|DATA|HORA|LOCAL|MEDICO|OBSERVACAO
+    </div>
+  </div>
+
+  <!-- Card de Lotes -->
+<div class="card">
+  <h2>Lotes Importados</h2>
+  <div style="overflow-x: auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Arquivo</th>
+          <th>Total</th>
+          <th>Enviados</th>
+          <th>Falhas</th>
+          <th>Pendentes</th>
+          <th>Respostas Recebidas</th>
+          <th>Respostas Pendentes</th>
+          <th>Data</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let batch of batches" 
+            [class.selected]="selectedBatchId === batch.id"
+            (click)="selectBatch(batch.id)"
+            style="cursor: pointer;">
+          <td>{{ batch.id }}</td>
+          <td>{{ batch.filename }}</td>
+          <td><strong>{{ batch.total_messages }}</strong></td>
+          <td><span class="badge badge-success">{{ batch.sent }}</span></td>
+          <td><span class="badge badge-error">{{ batch.failed }}</span></td>
+          <td><span class="badge badge-warning">{{ batch.pending }}</span></td>
+          <td>
+            <span class="badge badge-info">{{ batch.respostas_recebidas || 0 }}</span>
+          </td>
+          <td>
+            <span class="badge" style="background: #fef3c7; color: #92400e;">
+              {{ batch.respostas_pendentes || 0 }}
+            </span>
+          </td>
+          <td>{{ formatDate(batch.created_at) }}</td>
+          <td>
+            <button 
+              *ngIf="batch.pending > 0"
+              (click)="sendBatch(batch.id); $event.stopPropagation()"
+              [disabled]="sendingBatchId === batch.id"
+              class="btn-primary btn-small">
+              <span *ngIf="sendingBatchId !== batch.id">▶ Enviar</span>
+              <span *ngIf="sendingBatchId === batch.id" style="display: flex; align-items: center; gap: 0.5rem;">
+                <span class="loading" style="width: 14px; height: 14px;"></span>
+                Enviando...
+              </span>
+            </button>
+            <button 
+              (click)="exportBatch(batch.id); $event.stopPropagation()"
+              class="btn-success btn-small">
+              📥 Exportar
+            </button>
+          </td>
+        </tr>
+        <tr *ngIf="batches.length === 0">
+          <td colspan="10" style="text-align: center; padding: 3rem; color: #718096;">
+            <div class="empty-state">
+              <div class="empty-state-icon">📦</div>
+              <p>Nenhum lote importado ainda</p>
+              <p style="font-size: 0.875rem; margin-top: 0.5rem;">
+                Faça o upload de um arquivo TXT para começar
+              </p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+  <!-- Dashboard de Estatísticas -->
+  <div *ngIf="selectedBatchId && dashboardData">
+    <h2 style="margin-top: 2rem; margin-bottom: 1rem;">
+      📊 Dashboard - Lote #{{ selectedBatchId }}
+    </h2>
+    
+    <!-- Cards de Estatísticas de Envio -->
+    <div class="stats-grid">
+      <div class="stat-card blue">
+        <div class="stat-info">
+          <h3>Total de Mensagens</h3>
+          <div class="value">{{ getTotalMessages() }}</div>
+        </div>
+        <div class="stat-icon">📊</div>
+      </div>
+
+      <div class="stat-card green">
+        <div class="stat-info">
+          <h3>Enviados</h3>
+          <div class="value">{{ getStatistic('ENVIADO') }}</div>
+          <div class="percentage">
+            {{ getPercentage(getStatistic('ENVIADO'), getTotalMessages()) }}%
+          </div>
+        </div>
+        <div class="stat-icon">✅</div>
+      </div>
+
+      <div class="stat-card yellow">
+        <div class="stat-info">
+          <h3>Pendentes</h3>
+          <div class="value">{{ getStatistic('PENDENTE') }}</div>
+          <div class="percentage">
+            {{ getPercentage(getStatistic('PENDENTE'), getTotalMessages()) }}%
+          </div>
+        </div>
+        <div class="stat-icon">⏳</div>
+      </div>
+
+      <div class="stat-card red">
+        <div class="stat-info">
+          <h3>Falhas</h3>
+          <div class="value">{{ getStatistic('FALHA') }}</div>
+          <div class="percentage">
+            {{ getPercentage(getStatistic('FALHA'), getTotalMessages()) }}%
+          </div>
+        </div>
+        <div class="stat-icon">❌</div>
+      </div>
+    </div>
+
+    <!-- Cards de Estatísticas de Confirmação -->
+    <h3 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1.1rem; color: #2d3748;">
+      Status de Confirmação dos Pacientes
+    </h3>
+    
+    <div class="stats-grid">
+      <div class="stat-card green">
+        <div class="stat-info">
+          <h3>Confirmaram</h3>
+          <div class="value">{{ getConfirmationCount('CONFIRMAR') }}</div>
+          <div class="percentage">
+            {{ getPercentage(getConfirmationCount('CONFIRMAR'), getStatistic('ENVIADO')) }}% dos enviados
+          </div>
+        </div>
+        <div class="stat-icon">✔️</div>
+      </div>
+
+      <div class="stat-card red">
+        <div class="stat-info">
+          <h3>Cancelaram</h3>
+          <div class="value">{{ getConfirmationCount('CANCELAR') }}</div>
+          <div class="percentage">
+            {{ getPercentage(getConfirmationCount('CANCELAR'), getStatistic('ENVIADO')) }}% dos enviados
+          </div>
+        </div>
+        <div class="stat-icon">✖️</div>
+      </div>
+
+      <div class="stat-card blue">
+        <div class="stat-info">
+          <h3>Reagendar</h3>
+          <div class="value">{{ getConfirmationCount('REAGENDAR') }}</div>
+          <div class="percentage">
+            {{ getPercentage(getConfirmationCount('REAGENDAR'), getStatistic('ENVIADO')) }}% dos enviados
+          </div>
+        </div>
+        <div class="stat-icon">📅</div>
+      </div>
+
+      <div class="stat-card yellow">
+        <div class="stat-info">
+          <h3>Sem Resposta</h3>
+          <div class="value">{{ getSemResposta() }}</div>
+          <div class="percentage">
+            {{ getPercentage(getSemResposta(), getStatistic('ENVIADO')) }}% dos enviados
+          </div>
+        </div>
+        <div class="stat-icon">⏱️</div>
+      </div>
+    </div>
+
+    <!-- Tabela de Detalhes -->
+    <div class="card" style="margin-top: 2rem;">
+      <h2>Detalhes das Mensagens</h2>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Telefone</th>
+              <th>Tipo</th>
+              <th>Status Envio</th>
+              <th>Enviado em</th>
+              <th>Resposta Paciente</th>
+              <th>Data Resposta</th>
+              <th>Erro</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let msg of dashboardData.messages">
+              <td>{{ msg.nome }}</td>
+              <td>{{ msg.telefone }}</td>
+              <td>
+                <span class="badge" 
+                      [ngClass]="msg.tipo === 'CONSULTA' ? 'badge-info' : 'badge-purple'">
+                  {{ msg.tipo }}
+                </span>
+              </td>
+              <td>
+                <span class="badge" 
+                      [ngClass]="{
+                        'badge-success': msg.status === 'ENVIADO',
+                        'badge-warning': msg.status === 'PENDENTE',
+                        'badge-error': msg.status === 'FALHA'
+                      }">
+                  {{ msg.status }}
+                </span>
+              </td>
+              <td>{{ formatDate(msg.sent_at) }}</td>
+              <td>
+                <span *ngIf="msg.status_confirmacao" class="badge"
+                      [ngClass]="{
+                        'badge-success': msg.status_confirmacao.includes('CONFIRMAR'),
+                        'badge-error': msg.status_confirmacao.includes('CANCELAR'),
+                        'badge-info': msg.status_confirmacao.includes('REAGENDAR')
+                      }">
+                  {{ getConfirmationLabel(msg.status_confirmacao) }}
+                </span>
+                <span *ngIf="!msg.status_confirmacao && msg.status === 'ENVIADO'" 
+                      style="color: #999; font-size: 0.875rem;">
+                  Aguardando resposta
+                </span>
+                <span *ngIf="msg.status !== 'ENVIADO'" style="color: #ccc; font-size: 0.875rem;">
+                  -
+                </span>
+              </td>
+              <td style="font-size: 0.875rem;">
+                {{ msg.data_confirmacao ? formatDate(msg.data_confirmacao) : '-' }}
+              </td>
+              <td style="color: #e53e3e; font-size: 0.875rem;">
+                {{ msg.error_message || '-' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
