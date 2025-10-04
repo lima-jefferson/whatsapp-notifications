@@ -138,7 +138,7 @@ function formatMessage(record) {
 }
 
 // Upload e processar arquivo
-app.post('/api/upload', upload.single('file'), async (req, res) => {
+app.post('/upload', upload.single('file'), async (req, res) => {
   try {
     const filePath = req.file.path;
     const records = [];
@@ -202,7 +202,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 });
 
 // Processar envio de lote
-app.post('/api/batch/:batchId/send', async (req, res) => {
+app.post('/batch/:batchId/send', async (req, res) => {
   try {
     const { batchId } = req.params;
     
@@ -242,7 +242,7 @@ async function processMessages(messages) {
 }
 
 // WEBHOOK - Verificação (Meta chama uma vez para validar)
-app.get('/api/webhook', (req, res) => {
+app.get('/webhook', (req, res) => {
   try {
     console.log('=== WEBHOOK GET RECEBIDO ===');
     console.log('Query params:', req.query);
@@ -272,7 +272,7 @@ app.get('/api/webhook', (req, res) => {
 });
 
 // WEBHOOK - Receber eventos (respostas de botões, status, etc)
-app.post('/api/webhook', async (req, res) => {
+app.post('/webhook', async (req, res) => {
   try {
     console.log('Webhook recebido:', JSON.stringify(req.body, null, 2));
     
@@ -361,7 +361,7 @@ app.post('/api/webhook', async (req, res) => {
 });
 
 // Dashboard - Estatísticas
-app.get('/api/dashboard/:batchId', async (req, res) => {
+app.get('/dashboard/:batchId', async (req, res) => {
   try {
     const { batchId } = req.params;
     
@@ -389,7 +389,7 @@ app.get('/api/dashboard/:batchId', async (req, res) => {
 });
 
 // Gerar arquivo de retorno
-app.get('/api/batch/:batchId/export', async (req, res) => {
+app.get('/batch/:batchId/export', async (req, res) => {
   try {
     const { batchId } = req.params;
     
@@ -415,7 +415,7 @@ app.get('/api/batch/:batchId/export', async (req, res) => {
 });
 
 // Listar lotes
-app.get('/api/batches', async (req, res) => {
+app.get('/batches', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
