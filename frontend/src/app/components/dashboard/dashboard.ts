@@ -46,22 +46,22 @@ interface DashboardData {
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   private apiUrl = CONFIG.apiUrl;
-  
+
   batches: Batch[] = [];
   selectedBatchId: number | null = null;
   dashboardData: DashboardData | null = null;
-  
+
   uploadProgress = 0;
   isUploading = false;
   sendingBatchId: number | null = null;
-  
+
   private refreshSubscription?: Subscription;
 
   constructor(
     private http: HttpClient,
     private authService: AuthService,
     private router: Router
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.loadBatches();
@@ -97,13 +97,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
-    
+
     const file = input.files[0];
     const formData = new FormData();
     formData.append('file', file);
-    
+
     this.isUploading = true;
-    
+
     this.http.post<{ success: boolean; batchId: number; totalRecords: number }>(
       `${this.apiUrl}/upload`,
       formData
@@ -125,11 +125,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   selectBatch(batchId: number): void {
     this.selectedBatchId = batchId;
     this.loadDashboard(batchId);
-    
+
     if (this.refreshSubscription) {
       this.refreshSubscription.unsubscribe();
     }
-    
+
     this.refreshSubscription = interval(3000)
       .pipe(switchMap(() => this.http.get<DashboardData>(`${this.apiUrl}/dashboard/${batchId}`)))
       .subscribe({
@@ -152,13 +152,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   sendBatch(batchId: number): void {
     if (!confirm('Deseja iniciar o envio das mensagens?')) return;
-    
+
     this.sendingBatchId = batchId;
-    
+
     this.http.post(`${this.apiUrl}/batch/${batchId}/send`, {}).subscribe({
       next: () => {
         alert('Envio iniciado! As mensagens estão sendo processadas.');
-        
+
         setTimeout(() => {
           this.loadBatches();
           this.sendingBatchId = null;
@@ -173,7 +173,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   exportBatch(batchId: number): void {
-    window.open(`${this.apiUrl}/batch/${batchId}/export`, '_blank');
+    this.http.get(`${this.apiUrl}/batch/${batchId}/export`, {
+      responseType: 'text',
+      observe: 'response'
+    }).subscribe({
+      next: (response) => {
+        const blob = new Blob([response.body || ''], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `retorno_lote_${batchId}.txt`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: (err) => {
+        console.error('Erro ao exportar:', err);
+        alert('Erro ao exportar arquivo');
+      }
+    });
   }
 
   getStatistic(status: string): number {
@@ -205,17 +222,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     };
     return classes[status] || 'bg-gray-100 text-gray-800';
   }
-  
+
   getConfirmationCount(type: string): number {
     if (!this.dashboardData) return 0;
-    return this.dashboardData.messages.filter(m => 
+    return this.dashboardData.messages.filter(m =>
       m.status_confirmacao && m.status_confirmacao.toUpperCase().includes(type.toUpperCase())
     ).length;
   }
 
   getSemResposta(): number {
     if (!this.dashboardData) return 0;
-    return this.dashboardData.messages.filter(m => 
+    return this.dashboardData.messages.filter(m =>
       m.status === 'ENVIADO' && !m.status_confirmacao
     ).length;
   }
