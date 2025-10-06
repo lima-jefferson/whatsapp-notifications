@@ -56,6 +56,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   sendingBatchId: number | null = null;
 
   private refreshSubscription?: Subscription;
+  private batchesRefreshSubscription?: Subscription;
 
   constructor(
     private http: HttpClient,
@@ -65,11 +66,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadBatches();
+    
+    // Atualiza a lista de lotes a cada 5 segundos
+    this.batchesRefreshSubscription = interval(5000).subscribe(() => {
+      this.loadBatches();
+    });
   }
 
   ngOnDestroy(): void {
     if (this.refreshSubscription) {
       this.refreshSubscription.unsubscribe();
+    }
+    if (this.batchesRefreshSubscription) {
+      this.batchesRefreshSubscription.unsubscribe();
     }
   }
 
