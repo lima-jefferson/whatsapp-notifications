@@ -6,9 +6,24 @@ const { createReadStream } = require('fs');
 const readline = require('readline');
 const axios = require('axios');
 const { Pool } = require('pg');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
+
+// Configuração JWT
+const JWT_SECRET = process.env.JWT_SECRET || 'mude_este_secret_em_producao_por_algo_muito_seguro';
+
+// Usuário padrão (em produção, use banco de dados)
+// Senha padrão: admin123
+const users = [
+  {
+    id: 1,
+    username: 'admin',
+    password: '$2a$10$rKZG8X8yK0xVN.KZGJqPZJ9nZJ7HxKzJZJ9nZJ7HxKzJZe8yK0xVN.'
+  }
+];
 
 // Configuração do banco de dados
 const pool = new Pool({
@@ -26,16 +41,72 @@ const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 app.use(cors());
 app.use(express.json());
 
-// Adicione estas linhas aqui:
+// Middleware de autenticação
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Token não fornecido' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Token inválido' });
+    }
+    req.user = user;
+    next();
+  });
+}
+
+// Rota de login (PÚBLICA)
+app.post('/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Usuário e senha são obrigatórios' });
+    }
+    
+    const user = users.find(u => u.username === username);
+    
+    if (!user) {
+      return res.status(401).json({ error: 'Usuário ou senha inválidos' });
+    }
+    
+    const validPassword = await bcrypt.compare(password, user.password);
+    
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Usuário ou senha inválidos' });
+    }
+    
+    const token = jwt.sign(
+      { id: user.id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+    
+    res.json({ 
+      token, 
+      username: user.username,
+      expiresIn: '8h'
+    });
+  } catch (error) {
+    console.error('Erro no login:', error);
+    res.status(500).json({ error: 'Erro ao realizar login' });
+  }
+});
+
+// Health check (PÚBLICA)
 app.get('/', (req, res) => {
   res.json({ 
     status: 'online',
     timestamp: new Date().toISOString(),
-    endpoints: ['/webhook', '/upload', '/batches']
+    endpoints: ['/login', '/webhook', '/upload', '/batches']
   });
 });
 
-// Tratamento de erros globais (já existe)
+// Tratamento de erros globais
 process.on('uncaughtException', (error) => {
   console.error('Erro não capturado:', error);
 });
@@ -146,8 +217,8 @@ function formatMessage(record) {
   return { templateName, components };
 }
 
-// Upload e processar arquivo
-app.post('/upload', upload.single('file'), async (req, res) => {
+// Upload e processar arquivo (PROTEGIDA)
+app.post('/upload', authenticateToken, upload.single('file'), async (req, res) => {
   try {
     const filePath = req.file.path;
     const records = [];
@@ -210,8 +281,8 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   }
 });
 
-// Processar envio de lote
-app.post('/batch/:batchId/send', async (req, res) => {
+// Processar envio de lote (PROTEGIDA)
+app.post('/batch/:batchId/send', authenticateToken, async (req, res) => {
   try {
     const { batchId } = req.params;
     
@@ -250,7 +321,7 @@ async function processMessages(messages) {
   }
 }
 
-// WEBHOOK - Verificação (Meta chama uma vez para validar)
+// WEBHOOK - Verificação (PÚBLICA - Meta precisa validar)
 app.get('/webhook', (req, res) => {
   try {
     console.log('=== WEBHOOK GET RECEBIDO ===');
@@ -280,7 +351,7 @@ app.get('/webhook', (req, res) => {
   }
 });
 
-// WEBHOOK - Receber eventos (respostas de botões, status, etc)
+// WEBHOOK - Receber eventos (PÚBLICA - Meta precisa enviar)
 app.post('/webhook', async (req, res) => {
   try {
     console.log('Webhook recebido:', JSON.stringify(req.body, null, 2));
@@ -298,7 +369,6 @@ app.post('/webhook', async (req, res) => {
         
         console.log(`Botão clicado: ${buttonPayload} por ${phoneNumber}`);
         
-        // Padronizar o payload antes de salvar
         let payloadPadronizado = buttonPayload.toUpperCase();
         if (payloadPadronizado.includes('CONFIRMAR')) {
           payloadPadronizado = 'CONFIRMAR';
@@ -369,8 +439,8 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// Dashboard - Estatísticas
-app.get('/dashboard/:batchId', async (req, res) => {
+// Dashboard - Estatísticas (PROTEGIDA)
+app.get('/dashboard/:batchId', authenticateToken, async (req, res) => {
   try {
     const { batchId } = req.params;
     
@@ -397,8 +467,8 @@ app.get('/dashboard/:batchId', async (req, res) => {
   }
 });
 
-// Gerar arquivo de retorno
-app.get('/batch/:batchId/export', async (req, res) => {
+// Gerar arquivo de retorno (PROTEGIDA)
+app.get('/batch/:batchId/export', authenticateToken, async (req, res) => {
   try {
     const { batchId } = req.params;
     
@@ -423,8 +493,8 @@ app.get('/batch/:batchId/export', async (req, res) => {
   }
 });
 
-// Listar lotes
-app.get('/batches', async (req, res) => {
+// Listar lotes (PROTEGIDA)
+app.get('/batches', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
