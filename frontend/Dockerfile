@@ -8,8 +8,8 @@ RUN npm ci
 
 COPY . .
 
-# Debug: Check if whatsapp.ts has the correct content
-RUN cat src/app/services/whatsapp.ts | grep "private apiUrl"
+# Remove Angular cache before build
+RUN rm -rf .angular
 
 RUN npm run build
 
