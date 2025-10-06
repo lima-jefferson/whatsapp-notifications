@@ -21,7 +21,7 @@ const users = [
   {
     id: 1,
     username: 'admin',
-    password: '$2b$10$nnUWC6AxOEOeRLkoeIYXdOcDBtfiwInaG6j.saVFGE3as2nzVnKGy'
+    password: '$2b$10$RgxB9nd4AlaMDEgqwPnrhuTQd34jhYDlKISXXfVVtUKBdBiRYiDgK'
   }
 ];
 
