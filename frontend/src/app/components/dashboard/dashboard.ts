@@ -4,8 +4,8 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
-import { AuthService } from '../services/auth.service';
-import { CONFIG } from '../config';
+import { AuthService } from '../../services/auth.service';
+import { CONFIG } from '../../config';
 
 interface Batch {
   id: number;
