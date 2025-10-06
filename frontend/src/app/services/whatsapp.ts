@@ -55,9 +55,7 @@ export interface SendResponse {
   providedIn: 'root'
 })
 export class WhatsappService {
-  private apiUrl = window.location.hostname === 'localhost' 
-    ? 'http://localhost:3000'
-    : 'https://notifica-backend.negocios-digitais-br.online';
+  private apiUrl = 'https://notifica-backend.negocios-digitais-br.online';
 
   constructor(private http: HttpClient) {}
 
