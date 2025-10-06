@@ -8,10 +8,10 @@ RUN npm ci
 
 COPY . .
 
-RUN npm run build
+# Debug: Check if whatsapp.ts has the correct content
+RUN cat src/app/services/whatsapp.ts | grep "private apiUrl"
 
-# Debug: check exact structure
-RUN ls -la /app/dist/frontend/
+RUN npm run build
 
 FROM nginx:alpine
 
