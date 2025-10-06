@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build --configuration production && find dist -name '*.js' -exec sed -i.bak 's/localhost:3000/notifica-backend.negocios-digitais-br.online/g' {} \\;",
+    "build": "ng build --configuration production && find dist -name '*.js' -exec sed -i.bak 's|http://localhost:3000/api|https://notifica-backend.negocios-digitais-br.online|g' {} \\;",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
