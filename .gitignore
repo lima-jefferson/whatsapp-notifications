@@ -11,4 +11,5 @@ frontend/dist
 
 # Geral
 .DS_Store
-*.log
+*.logteste.txt
+teste*.txt
