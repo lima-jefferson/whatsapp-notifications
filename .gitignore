@@ -13,3 +13,5 @@ frontend/dist
 .DS_Store
 *.logteste.txt
 teste*.txt
+teste.txt
+teste*.txt
