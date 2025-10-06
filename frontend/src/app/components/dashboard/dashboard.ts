@@ -1,8 +1,11 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
+import { AuthService } from '../services/auth.service';
+import { CONFIG } from '../config';
 
 interface Batch {
   id: number;
@@ -42,7 +45,7 @@ interface DashboardData {
   styleUrls: ['./dashboard.css']
 })
 export class DashboardComponent implements OnInit, OnDestroy {
-  private apiUrl = 'http://localhost:3000/api';
+  private apiUrl = CONFIG.apiUrl;
   
   batches: Batch[] = [];
   selectedBatchId: number | null = null;
@@ -54,7 +57,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   
   private refreshSubscription?: Subscription;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService,
+    private router: Router
+  ) {}
 
   ngOnInit(): void {
     this.loadBatches();
@@ -64,6 +71,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.refreshSubscription) {
       this.refreshSubscription.unsubscribe();
     }
+  }
+
+  logout(): void {
+    this.authService.logout();
+    this.router.navigate(['/login']);
+  }
+
+  getUsername(): string {
+    return this.authService.getUsername() || 'Usuário';
   }
 
   loadBatches(): void {
