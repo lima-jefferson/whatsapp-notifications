@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { CONFIG } from '../config';
 
 export interface Batch {
   id: number;
@@ -55,9 +56,11 @@ export interface SendResponse {
   providedIn: 'root'
 })
 export class WhatsappService {
-  private apiUrl = 'https://notifica-backend.negocios-digitais-br.online';
+  private readonly apiUrl = CONFIG.apiUrl;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) {
+    console.log('API URL:', this.apiUrl); // Debug
+  }
 
   uploadBatch(file: File): Observable<UploadResponse> {
     const formData = new FormData();
