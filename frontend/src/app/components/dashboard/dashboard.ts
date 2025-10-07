@@ -67,8 +67,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadBatches();
     
-    // Atualiza a lista de lotes a cada 5 segundos
-    this.batchesRefreshSubscription = interval(5000).subscribe(() => {
+    // Atualiza a lista de lotes a cada 3 segundos
+    this.batchesRefreshSubscription = interval(3000).subscribe(() => {
+      // Verifica se ainda está autenticado
+      if (!this.authService.checkAuthenticated()) {
+        alert('Sessão expirada. Faça login novamente.');
+        this.logout();
+        return;
+      }
       this.loadBatches();
     });
   }
@@ -95,10 +101,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.http.get<Batch[]>(`${this.apiUrl}/batches`).subscribe({
       next: (data) => {
         this.batches = data;
+        
+        // Se houver um lote selecionado, atualiza o dashboard também
+        if (this.selectedBatchId) {
+          this.loadDashboard(this.selectedBatchId);
+        }
       },
       error: (err) => {
         console.error('Erro ao carregar lotes:', err);
-        alert('Erro ao carregar lotes');
+        // Não mostra alert em atualizações automáticas para não incomodar o usuário
+        if (this.batches.length === 0) {
+          alert('Erro ao carregar lotes');
+        }
       }
     });
   }
@@ -139,13 +153,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.refreshSubscription.unsubscribe();
     }
 
-    this.refreshSubscription = interval(3000)
-      .pipe(switchMap(() => this.http.get<DashboardData>(`${this.apiUrl}/dashboard/${batchId}`)))
-      .subscribe({
-        next: (data) => {
-          this.dashboardData = data;
-        }
-      });
+    // Atualização independente do dashboard não é mais necessária
+    // pois será atualizado junto com loadBatches()
   }
 
   loadDashboard(batchId: number): void {
