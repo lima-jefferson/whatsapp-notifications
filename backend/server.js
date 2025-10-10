@@ -63,31 +63,31 @@ function authenticateToken(req, res, next) {
 app.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    
+
     if (!username || !password) {
       return res.status(400).json({ error: 'Usuário e senha são obrigatórios' });
     }
-    
+
     const user = users.find(u => u.username === username);
-    
+
     if (!user) {
       return res.status(401).json({ error: 'Usuário ou senha inválidos' });
     }
-    
+
     const validPassword = await bcrypt.compare(password, user.password);
-    
+
     if (!validPassword) {
       return res.status(401).json({ error: 'Usuário ou senha inválidos' });
     }
-    
+
     const token = jwt.sign(
       { id: user.id, username: user.username },
       JWT_SECRET,
       { expiresIn: '8h' }
     );
-    
-    res.json({ 
-      token, 
+
+    res.json({
+      token,
       username: user.username,
       expiresIn: '8h'
     });
@@ -99,7 +99,7 @@ app.post('/login', async (req, res) => {
 
 // Health check (PÚBLICA)
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     status: 'online',
     timestamp: new Date().toISOString(),
     endpoints: ['/login', '/webhook', '/upload', '/batches']
@@ -184,9 +184,9 @@ async function sendWhatsAppMessage(to, templateName, components) {
     return { success: true, messageId: response.data.messages[0].id };
   } catch (error) {
     console.log('Erro WhatsApp:', error.response?.data);
-    return { 
-      success: false, 
-      error: error.response?.data?.error?.message || error.message 
+    return {
+      success: false,
+      error: error.response?.data?.error?.message || error.message
     };
   }
 }
@@ -195,11 +195,11 @@ async function sendWhatsAppMessage(to, templateName, components) {
 function formatMessage(record) {
   const tipo = record.tipo.toUpperCase();
   const data = new Date(record.data_agendamento).toLocaleDateString('pt-BR');
-  
-  const templateName = tipo === 'CONSULTA' 
-    ? process.env.TEMPLATE_CONSULTA 
+
+  const templateName = tipo === 'CONSULTA'
+    ? process.env.TEMPLATE_CONSULTA
     : process.env.TEMPLATE_EXAME;
-  
+
   const components = [
     {
       type: 'body',
@@ -213,7 +213,7 @@ function formatMessage(record) {
       ]
     }
   ];
-  
+
   return { templateName, components };
 }
 
@@ -222,7 +222,7 @@ app.post('/upload', authenticateToken, upload.single('file'), async (req, res) =
   try {
     const filePath = req.file.path;
     const records = [];
-    
+
     const fileStream = createReadStream(filePath);
     const rl = readline.createInterface({
       input: fileStream,
@@ -230,21 +230,25 @@ app.post('/upload', authenticateToken, upload.single('file'), async (req, res) =
     });
 
     let isFirstLine = true;
-    
+
     for await (const line of rl) {
       if (isFirstLine) {
         isFirstLine = false;
         continue;
       }
-      
+
       const [nome, telefone, tipo, data, hora, local, medico, observacao] = line.split('|');
-      
+
       if (nome && telefone) {
+        // Converte data de DD/MM/YYYY para YYYY-MM-DD
+        const [day, month, year] = data.trim().split('/');
+        const dataFormatada = `${year}-${month}-${day}`;
+
         records.push({
           nome: nome.trim(),
           telefone: telefone.trim(),
           tipo: tipo.trim(),
-          data_agendamento: data.trim(),
+          data_agendamento: dataFormatada,
           hora_agendamento: hora.trim(),
           local: local.trim(),
           medico: medico.trim(),
@@ -257,7 +261,7 @@ app.post('/upload', authenticateToken, upload.single('file'), async (req, res) =
       'INSERT INTO batches (filename, total_records) VALUES ($1, $2) RETURNING id',
       [req.file.originalname, records.length]
     );
-    
+
     const batchId = batchResult.rows[0].id;
 
     for (const record of records) {
@@ -266,14 +270,14 @@ app.post('/upload', authenticateToken, upload.single('file'), async (req, res) =
          hora_agendamento, local, medico, observacao) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [batchId, record.nome, record.telefone, record.tipo, record.data_agendamento,
-         record.hora_agendamento, record.local, record.medico, record.observacao]
+          record.hora_agendamento, record.local, record.medico, record.observacao]
       );
     }
 
-    res.json({ 
-      success: true, 
-      batchId, 
-      totalRecords: records.length 
+    res.json({
+      success: true,
+      batchId,
+      totalRecords: records.length
     });
   } catch (error) {
     console.error(error);
@@ -285,14 +289,14 @@ app.post('/upload', authenticateToken, upload.single('file'), async (req, res) =
 app.post('/batch/:batchId/send', authenticateToken, async (req, res) => {
   try {
     const { batchId } = req.params;
-    
+
     const result = await pool.query(
       'SELECT * FROM messages WHERE batch_id = $1 AND status = $2',
       [batchId, 'PENDENTE']
     );
 
     processMessages(result.rows);
-    
+
     res.json({ success: true, message: 'Processamento iniciado' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -304,7 +308,7 @@ async function processMessages(messages) {
   for (const msg of messages) {
     const { templateName, components } = formatMessage(msg);
     const result = await sendWhatsAppMessage(msg.telefone, templateName, components);
-    
+
     if (result.success) {
       await pool.query(
         'UPDATE messages SET status = $1, message_id = $2, sent_at = NOW() WHERE id = $3',
@@ -316,7 +320,7 @@ async function processMessages(messages) {
         ['FALHA', result.error, msg.id]
       );
     }
-    
+
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
 }
@@ -326,18 +330,18 @@ app.get('/webhook', (req, res) => {
   try {
     console.log('=== WEBHOOK GET RECEBIDO ===');
     console.log('Query params:', req.query);
-    
+
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
-    
+
     const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'token';
-    
+
     console.log('Mode:', mode);
     console.log('Token recebido:', token);
     console.log('Token esperado:', VERIFY_TOKEN);
     console.log('Challenge:', challenge);
-    
+
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
       console.log('✅ Webhook verificado com sucesso!');
       return res.status(200).send(challenge);
@@ -355,20 +359,20 @@ app.get('/webhook', (req, res) => {
 app.post('/webhook', async (req, res) => {
   try {
     console.log('Webhook recebido:', JSON.stringify(req.body, null, 2));
-    
+
     const data = req.body;
-    
+
     // Processar respostas de botões
     if (data.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
       const message = data.entry[0].changes[0].value.messages[0];
-      
+
       if (message.type === 'button' && message.button) {
         const buttonPayload = message.button.payload;
         const phoneNumber = message.from;
         const contextMessageId = message.context?.id;
-        
+
         console.log(`Botão clicado: ${buttonPayload} por ${phoneNumber}`);
-        
+
         let payloadPadronizado = buttonPayload.toUpperCase();
         if (payloadPadronizado.includes('CONFIRMAR')) {
           payloadPadronizado = 'CONFIRMAR';
@@ -377,7 +381,7 @@ app.post('/webhook', async (req, res) => {
         } else if (payloadPadronizado.includes('REAGENDAR')) {
           payloadPadronizado = 'REAGENDAR';
         }
-        
+
         if (contextMessageId) {
           await pool.query(
             `UPDATE messages 
@@ -386,13 +390,13 @@ app.post('/webhook', async (req, res) => {
              WHERE message_id = $2`,
             [payloadPadronizado, contextMessageId]
           );
-          
+
           console.log(`Status de confirmação atualizado: ${payloadPadronizado}`);
         }
-        
+
         let respostaTexto = '';
-        
-        switch(payloadPadronizado) {
+
+        switch (payloadPadronizado) {
           case 'CONFIRMAR':
             respostaTexto = '✅ Agendamento confirmado!\n\nObrigado pela confirmação. Sua presença está confirmada para o dia e horário agendados.\n\nTe esperamos! 😊';
             break;
@@ -403,7 +407,7 @@ app.post('/webhook', async (req, res) => {
             respostaTexto = '📅 Solicitação de reagendamento recebida!\n\nNossa equipe entrará em contato com você em breve para verificar a melhor data e horário disponíveis.\n\nAguarde nosso retorno. Obrigado!';
             break;
         }
-        
+
         if (respostaTexto) {
           await axios.post(
             WHATSAPP_API_URL,
@@ -420,18 +424,18 @@ app.post('/webhook', async (req, res) => {
               }
             }
           );
-          
+
           console.log('Resposta automática enviada');
         }
       }
     }
-    
+
     // Processar status de entrega
     if (data.entry?.[0]?.changes?.[0]?.value?.statuses) {
       const status = data.entry[0].changes[0].value.statuses[0];
       console.log(`Status de entrega: ${status.status} para mensagem ${status.id}`);
     }
-    
+
     res.sendStatus(200);
   } catch (error) {
     console.error('Erro no webhook:', error);
@@ -443,7 +447,7 @@ app.post('/webhook', async (req, res) => {
 app.get('/dashboard/:batchId', authenticateToken, async (req, res) => {
   try {
     const { batchId } = req.params;
-    
+
     const stats = await pool.query(`
       SELECT 
         status,
@@ -452,12 +456,12 @@ app.get('/dashboard/:batchId', authenticateToken, async (req, res) => {
       WHERE batch_id = $1
       GROUP BY status
     `, [batchId]);
-    
+
     const messages = await pool.query(
       'SELECT * FROM messages WHERE batch_id = $1 ORDER BY created_at DESC',
       [batchId]
     );
-    
+
     res.json({
       statistics: stats.rows,
       messages: messages.rows
@@ -471,20 +475,20 @@ app.get('/dashboard/:batchId', authenticateToken, async (req, res) => {
 app.get('/batch/:batchId/export', authenticateToken, async (req, res) => {
   try {
     const { batchId } = req.params;
-    
+
     const result = await pool.query(
       'SELECT telefone, status, sent_at, message_id, error_message, status_confirmacao, data_confirmacao FROM messages WHERE batch_id = $1',
       [batchId]
     );
-    
+
     let txtContent = 'TELEFONE|STATUS|DATA_ENVIO|ID_MENSAGEM|ERRO|CONFIRMACAO|DATA_CONFIRMACAO\n';
-    
+
     for (const row of result.rows) {
       const sentAt = row.sent_at ? new Date(row.sent_at).toLocaleString('pt-BR') : '';
       const confirmedAt = row.data_confirmacao ? new Date(row.data_confirmacao).toLocaleString('pt-BR') : '';
       txtContent += `${row.telefone}|${row.status}|${sentAt}|${row.message_id || ''}|${row.error_message || ''}|${row.status_confirmacao || ''}|${confirmedAt}\n`;
     }
-    
+
     res.setHeader('Content-Type', 'text/plain');
     res.setHeader('Content-Disposition', `attachment; filename=retorno_lote_${batchId}.txt`);
     res.send(txtContent);
@@ -510,7 +514,7 @@ app.get('/batches', authenticateToken, async (req, res) => {
       GROUP BY b.id
       ORDER BY b.created_at DESC
     `);
-    
+
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
